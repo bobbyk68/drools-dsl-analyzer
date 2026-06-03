@@ -1,0 +1,5 @@
+/target/
+/.idea/
+/*.iml
+.DS_Store
+/dsl-redundancy-report.txt
