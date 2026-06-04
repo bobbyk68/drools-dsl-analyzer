@@ -14,7 +14,7 @@ public class DslAnalyzerEngine {
 
     private static final Logger log = LoggerFactory.getLogger(DslAnalyzerEngine.class);
 
-    private final DslParsingStrategy parserStrategy; // Strategy Interface injected
+    private final DslParsingStrategy parserStrategy;
     private final DslrAnalyzer analyzer = new DslrAnalyzer();
     private final ReportGenerator reportGenerator;
     private final boolean dryRun;
@@ -27,8 +27,11 @@ public class DslAnalyzerEngine {
 
     public void analyze(RuleSetLocator.RuleSetPair pair) {
         try {
-            // Polymorphic behavior execution
             List<DslParsingStrategy.ParsedDslEntry> entries = parserStrategy.parse(pair.dslPath());
+
+            // 1. Initialize total base counts inside our summary aggregator
+            reportGenerator.initializeRuleSetMetrics(pair.ruleId(), entries.size());
+
             if (entries.isEmpty()) return;
 
             String dslContent = Files.readString(pair.dslPath());
@@ -37,12 +40,12 @@ public class DslAnalyzerEngine {
 
             for (DslParsingStrategy.ParsedDslEntry entry : entries) {
                 if (!analyzer.isTokenUsed(pair.dslrPath(), entry.plainTextToken())) {
+                    // 2. Logs exact line mapping details and increments the metrics profile internally
                     reportGenerator.logRedundant(pair.ruleId(), entry.lineNumber(), entry.plainTextToken());
                     changesFound = true;
 
                     int index = cleanDslBuffer.indexOf(entry.rawBlock());
                     if (index == -1) {
-                        // Fallback fallback handling if exact formatting block varies slightly
                         index = cleanDslBuffer.indexOf(entry.plainTextToken());
                     }
                     if (index != -1) {
@@ -55,7 +58,7 @@ public class DslAnalyzerEngine {
                 String baseName = FilenameUtils.getBaseName(pair.dslPath().toString());
                 String newFileName = baseName + "-cleaned.dsl";
                 Path cleanedPath = pair.dslPath().getParent().resolve(newFileName);
-                
+
                 String cleanedOutput = cleanDslBuffer.toString().replaceAll("(?m)^\\s*$\\n+", "");
                 Files.writeString(cleanedPath, cleanedOutput, StandardCharsets.UTF_8);
                 log.info("Generated cleaned file asset: {}", cleanedPath.getFileName());
