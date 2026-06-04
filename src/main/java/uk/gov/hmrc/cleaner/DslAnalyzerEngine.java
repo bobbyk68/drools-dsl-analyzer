@@ -14,31 +14,37 @@ public class DslAnalyzerEngine {
 
     private static final Logger log = LoggerFactory.getLogger(DslAnalyzerEngine.class);
 
-    private final DslParser parser = new DslParser();
+    private final DslParsingStrategy parserStrategy; // Strategy Interface injected
     private final DslrAnalyzer analyzer = new DslrAnalyzer();
     private final ReportGenerator reportGenerator;
     private final boolean dryRun;
 
-    public DslAnalyzerEngine(ReportGenerator reportGenerator, boolean dryRun) {
+    public DslAnalyzerEngine(DslParsingStrategy parserStrategy, ReportGenerator reportGenerator, boolean dryRun) {
+        this.parserStrategy = parserStrategy;
         this.reportGenerator = reportGenerator;
         this.dryRun = dryRun;
     }
 
     public void analyze(RuleSetLocator.RuleSetPair pair) {
         try {
-            List<DslParser.DslEntry> entries = parser.parseEntries(pair.dslPath());
+            // Polymorphic behavior execution
+            List<DslParsingStrategy.ParsedDslEntry> entries = parserStrategy.parse(pair.dslPath());
             if (entries.isEmpty()) return;
 
             String dslContent = Files.readString(pair.dslPath());
             StringBuilder cleanDslBuffer = new StringBuilder(dslContent);
             boolean changesFound = false;
 
-            for (DslParser.DslEntry entry : entries) {
+            for (DslParsingStrategy.ParsedDslEntry entry : entries) {
                 if (!analyzer.isTokenUsed(pair.dslrPath(), entry.plainTextToken())) {
                     reportGenerator.logRedundant(pair.ruleId(), entry.lineNumber(), entry.plainTextToken());
                     changesFound = true;
 
                     int index = cleanDslBuffer.indexOf(entry.rawBlock());
+                    if (index == -1) {
+                        // Fallback fallback handling if exact formatting block varies slightly
+                        index = cleanDslBuffer.indexOf(entry.plainTextToken());
+                    }
                     if (index != -1) {
                         cleanDslBuffer.delete(index, index + entry.rawBlock().length());
                     }

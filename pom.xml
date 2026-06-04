@@ -46,6 +46,11 @@
             <version>${junit.jupiter.version}</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>org.drools</groupId>
+            <artifactId>drools-drl-parser</artifactId>
+            <version>8.44.0.Final</version>
+        </dependency>
     </dependencies>
 
     <build>

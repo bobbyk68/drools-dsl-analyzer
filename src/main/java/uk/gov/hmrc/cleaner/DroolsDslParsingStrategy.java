@@ -11,33 +11,24 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
-public class DslParser {
+public class DroolsDslParsingStrategy implements DslParsingStrategy {
 
-    public record DslEntry(DSLMappingEntry rawEntry, String plainTextToken, int lineNumber) {}
-
-    public List<DslEntry> parseEntries(Path dslPath) throws IOException {
-        List<DslEntry> entries = new ArrayList<>();
-
-        // 1. Use Drools native mapping file parser
+    @Override
+    public List<ParsedDslEntry> parse(Path dslPath) throws IOException {
+        List<ParsedDslEntry> entries = new ArrayList<>();
         DSLMappingFile dslFile = new DSLTokenizedMappingFile();
+        
         try (BufferedReader reader = Files.newBufferedReader(dslPath)) {
             if (dslFile.parseAndLoad(reader)) {
-
-                // 2. Loop through the parsed abstract syntax tree entries
                 for (DSLMappingEntry entry : dslFile.getMapping().getEntries()) {
-
-                    // Filter down strictly to the [then] block entries (consequences)
                     if (entry.getSection() == DSLMappingEntry.CONSEQUENCE) {
-
-                        // The library automatically strips '[then]', trims spacing,
-                        // and isolates the plain English key
                         String cleanToken = entry.getMappingKey().replaceAll("\\s+", " ");
-
-                        // Note: Drools mapping metadata doesn't track source line numbers natively,
-                        // so we append a lightweight line finder back to our report helper.
                         int line = findLineNumber(dslPath, entry.getMappingKey());
-
-                        entries.add(new DslEntry(entry, cleanToken, line));
+                        
+                        // We rebuild the reconstructable raw block string for removal matching
+                        String rawBlock = "[then]" + entry.getMappingKey() + "=" + entry.getMappingValue() + ";";
+                        
+                        entries.add(new ParsedDslEntry(rawBlock, cleanToken, line));
                     }
                 }
             }
@@ -48,9 +39,7 @@ public class DslParser {
     private int findLineNumber(Path path, String key) throws IOException {
         List<String> lines = Files.readAllLines(path);
         for (int i = 0; i < lines.size(); i++) {
-            if (lines.get(i).contains(key)) {
-                return i + 1;
-            }
+            if (lines.get(i).contains(key)) return i + 1;
         }
         return 1;
     }
