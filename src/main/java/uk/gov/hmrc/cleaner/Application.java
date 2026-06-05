@@ -57,8 +57,17 @@ public class Application {
 
         RuleSetLocator locator = new RuleSetLocator();
         ReportGenerator reportGenerator = new ReportGenerator();
-        DslAnalyzerEngine engine = new DslAnalyzerEngine(strategy, reportGenerator, isDryRun);
+//        DslAnalyzerEngine engine = new DslAnalyzerEngine(strategy, reportGenerator, isDryRun);
 
+        // Inside Application.java main method:
+        DslDeletionStrategy deletionStrategy = new StructuralDeletionStrategy(); // Pluggable
+
+        DslAnalyzerEngine engine = new DslAnalyzerEngine(
+                strategy,
+                deletionStrategy, // Passed over smoothly
+                reportGenerator,
+                isDryRun
+        );
         try {
             List<RuleSetLocator.RuleSetPair> targets = locator.locateRuleSets(
                     basePath.resolve("dsl"),
