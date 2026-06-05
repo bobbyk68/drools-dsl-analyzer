@@ -43,6 +43,7 @@ public class DslAnalyzerEngine {
             boolean changesFound = false;
 
             for (DslParsingStrategy.ParsedDslEntry entry : entries) {
+
                 if (!complianceAnalyzer.isTokenUsed(pair.dslrPath(), entry.plainTextToken())) {
                     reportGenerator.logRedundant(pair.ruleId(), entry.lineNumber(), entry.plainTextToken());
                     changesFound = true;
@@ -60,6 +61,9 @@ public class DslAnalyzerEngine {
                 String formattedOutput = dslContent
                         .replace("\r\n", "\n")
                         .replaceAll("\n{3,}", "\n\n");
+
+                // NEW INTERACTION: Send snapshots to report generator for diff comparisons
+                reportGenerator.registerFileDiff(pair.ruleId(), dslContent, formattedOutput);
 
                 Files.writeString(cleanedPath, formattedOutput, StandardCharsets.UTF_8);
                 log.info("Generated cleaned file asset: {}", cleanedPath.getFileName());
