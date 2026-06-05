@@ -131,8 +131,8 @@ public class ReportGenerator {
                 .append(".dashboard { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 40px; }")
                 .append(".kpi-card { background: white; border-radius: 10px; padding: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border-left: 5px solid #cbd5e1; }")
                 .append(".kpi-card.scanned { border-left-color: #3b82f6; }")
-                .append(".kpi-card.active { border-left-color: #10b981; }")
-                .append(".kpi-card.pruned { border-left-color: #ef4444; }")
+                .append(".kpi-card.active { border-left-color: #16a34a; }") // Strong Green
+                .append(".kpi-card.pruned { border-left-color: #dc2626; }") // Strong Red
                 .append(".kpi-card.opt { border-left-color: #8b5cf6; }")
                 .append(".kpi-label { font-size: 0.8rem; font-weight: 600; text-transform: uppercase; color: #64748b; margin-bottom: 5px; }")
                 .append(".kpi-value { font-size: 1.8rem; font-weight: 700; color: #1e293b; }")
@@ -147,22 +147,38 @@ public class ReportGenerator {
                 .append(".metric span { font-weight: bold; color: #0f172a; }")
                 .append(".clean-msg { color: #16a34a; font-weight: 500; font-size: 0.95rem; }")
 
-                // Standalone Overview Table Styles
+                // Standalone Overview Table
                 .append("table { width: 100%; border-collapse: collapse; margin: 15px 0 25px 0; }")
                 .append("th { text-align: left; padding: 10px; background: #f8fafc; font-size: 0.8rem; text-transform: uppercase; color: #64748b; border-bottom: 2px solid #edf2f7; }")
                 .append("td { padding: 12px 10px; border-bottom: 1px solid #f1f5f9; font-size: 0.9rem; }")
                 .append(".line-num { font-family: monospace; color: #94a3b8; width: 90px; font-weight: 600; }")
                 .append(".removed-token { font-family: monospace; color: #991b1b; background: #fee2e2; padding: 4px 8px; border-radius: 4px; border: 1px solid #fecaca; font-weight: 500; display: inline-block; word-break: break-all; }")
 
-                // SIDE-BY-SIDE DIFF PANELS LAYOUT
-                .append(".diff-split-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; font-family: 'Fira Code', Consolas, Monaco, monospace; font-size: 0.82rem; }")
-                .append(".diff-pane { background: #0f172a; border-radius: 6px; padding: 15px; overflow-x: auto; color: #e2e8f0; line-height: 1.6; min-height: 100px; }")
-                .append(".pane-title { font-weight: bold; text-transform: uppercase; font-size: 0.75rem; color: #94a3b8; margin-bottom: 10px; letter-spacing: 0.5px; border-bottom: 1px solid #334155; padding-bottom: 5px; }")
-                .append(".diff-line { display: flex; white-space: pre; min-height: 20px; }")
-                .append(".diff-line.deletion { background: #451a1a; color: #fecaca; }")
-                .append(".diff-line.addition { background: #143a24; color: #bbf7d0; }")
-                .append(".diff-line.empty-pad { background: #1e293b; opacity: 0.25; }") // Visual gray gap filler
-                .append(".line-marker { width: 20px; display: inline-block; user-select: none; opacity: 0.4; text-align: center; margin-right: 8px; }")
+                // HIGH CONTRAST LIGHT MODE SIDE-BY-SIDE PANELS
+                .append(".diff-split-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px; font-family: 'Fira Code', Consolas, Monaco, monospace; font-size: 0.82rem; }")
+                .append(".diff-pane { background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 15px; overflow-x: auto; color: #1e293b; line-height: 1.6; min-height: 100px; }")
+                .append(".pane-title { font-weight: bold; text-transform: uppercase; font-size: 0.75rem; color: #64748b; margin-bottom: 10px; letter-spacing: 0.5px; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; }")
+                .append(".diff-line { display: flex; white-space: pre; min-height: 22px; align-items: center; background: #ffffff; }")
+
+                // Red Deletions Side
+                .append(".diff-line.deletion { background: #ffeeeb; color: #b91c1c; font-weight: 500; }")
+                .append(".diff-line.deletion .sign-marker { color: #dc2626; }")
+
+                // Green Additions Side
+                .append(".diff-line.addition { background: #f0fdf4; color: #16a34a; font-weight: 500; }")
+                .append(".diff-line.addition .sign-marker { color: #15803d; }")
+
+                // Gray padding for mismatched lines
+                .append(".diff-line.empty-pad { background: #f8fafc; border-color: transparent; }")
+                .append(".diff-line.empty-pad .num-col { border-right-color: transparent; }")
+
+                // Line numbers alignment
+                .append(".num-col { width: 40px; display: inline-block; user-select: none; text-align: right; margin-right: 12px; border-right: 1px solid #e2e8f0; padding-right: 8px; color: #94a3b8; font-weight: 500; }")
+                .append(".sign-marker { width: 15px; display: inline-block; user-select: none; font-weight: bold; margin-right: 4px; }")
+
+                // Collapsible Summary Tweaks
+                .append("details summary::-webkit-details-marker { display: none; }")
+                .append("details[open] summary span { transform: rotate(90deg); }")
                 .append("</style></head><body>");
 
         html.append("<h1>DSL Redundancy Analysis</h1>");
@@ -194,9 +210,8 @@ public class ReportGenerator {
                 html.append("  </div>");
 
                 if (isClean) {
-                    html.append("<div class='clean-msg'>✓ <strong>Status Clean:</strong> 100% of these mappings are fully cross-referenced in the規則 definitions.</div>");
+                    html.append("<div class='clean-msg'>✓ <strong>Status Clean:</strong> 100% of these mappings are fully cross-referenced in the DSLR rule definitions.</div>");
                 } else {
-                    // 1. RE-ADD THE STANDALONE OVERVIEW TABLE BREAKDOWN
                     html.append("<div style='font-weight:600; font-size:0.95rem; margin-bottom:5px;'>Targeted Redundant Entries List:</div>");
                     html.append("<table><thead><tr><th class='line-num'>Line</th><th>Redundant LHS Mapping Key (Pruned)</th></tr></thead><tbody>");
                     for (RedundantEntry detail : metrics.redundantDetails) {
@@ -205,73 +220,80 @@ public class ReportGenerator {
                         html.append("  <td><span class='removed-token'>").append(escapeHtml(detail.lhsToken())).append("</span></td>");
                         html.append("</tr>");
                     }
+                    // 1. Target Redundant Entries List Table ends here...
                     html.append("</tbody></table>");
 
-                    // 2. CONSTRUCT SIDE-BY-SIDE SIDE COMPARISON PANELS
-                    html.append("<div style='font-weight:600; font-size:0.95rem; margin-bottom:5px;'>Side-by-Side Visual File Comparison:</div>");
+                    // 2. MAKE THE SIDE-BY-SIDE VISUAL FILE COMPARISON COLLAPSIBLE
+                    html.append("<details style='margin-top: 20px; border: 1px solid #e2e8f0; border-radius: 6px; background: #f8fafc;'>");
+                    html.append("  <summary style='font-weight: 600; font-size: 0.95rem; padding: 12px; cursor: pointer; user-select: none; color: #1e293b; display: flex; align-items: center; gap: 8px;'>");
+                    html.append("    <span style='transition: transform 0.2s;'>▶</span> View Side-by-Side Visual File Comparison");
+                    html.append("  </summary>");
+                    html.append("  <div style='padding: 15px; background: white; border-top: 1px solid #e2e8f0;'>");
 
                     StringBuilder leftPane = new StringBuilder();
                     StringBuilder rightPane = new StringBuilder();
 
-                    List<String> originalLines = Arrays.asList(metrics.originalContent.split("\\R"));
-                    List<String> cleanedLines = Arrays.asList(metrics.cleanedContent.split("\\R"));
+                    List<String> originalLines = Arrays.asList(metrics.originalContent.split("\\R", -1));
+                    List<String> cleanedLines = Arrays.asList(metrics.cleanedContent.split("\\R", -1));
 
                     Patch<String> patch = DiffUtils.diff(originalLines, cleanedLines);
                     List<AbstractDelta<String>> deltas = patch.getDeltas();
 
+                    int origLineNum = 1;
+                    int cleanLineNum = 1;
                     int origIdx = 0;
-                    int cleanIdx = 0;
 
                     for (AbstractDelta<String> delta : deltas) {
-                        // Process identical matching rows leading up to the difference
                         while (origIdx < delta.getSource().getPosition()) {
-                            String baseLine = escapeHtml(originalLines.get(origIdx));
-                            leftPane.append("<div class='diff-line'><span class='line-marker'> </span>").append(baseLine).append("</div>");
-                            rightPane.append("<div class='diff-line'><span class='line-marker'> </span>").append(baseLine).append("</div>");
+                            String lineText = escapeHtml(originalLines.get(origIdx));
+                            leftPane.append("<div class='diff-line'><span class='num-col'>").append(origLineNum).append("</span><span class='sign-marker'> </span>").append(lineText).append("</div>");
+                            rightPane.append("<div class='diff-line'><span class='num-col'>").append(cleanLineNum).append("</span><span class='sign-marker'> </span>").append(lineText).append("</div>");
                             origIdx++;
-                            cleanIdx++;
+                            origLineNum++;
+                            cleanLineNum++;
                         }
 
                         int sourceSize = delta.getSource().getLines().size();
                         int targetSize = delta.getTarget().getLines().size();
                         int maxLines = Math.max(sourceSize, targetSize);
 
-                        // Align modified/removed code blocks completely parallel line-for-line
                         for (int i = 0; i < maxLines; i++) {
-                            // Left Column (Original Source Deletion Highlight)
                             if (i < sourceSize) {
                                 String line = escapeHtml(delta.getSource().getLines().get(i));
-                                leftPane.append("<div class='diff-line deletion'><span class='line-marker'>-</span>").append(line).append("</div>");
+                                leftPane.append("<div class='diff-line deletion'><span class='num-col'>").append(origLineNum).append("</span><span class='sign-marker'>-</span>").append(line).append("</div>");
+                                origLineNum++;
                             } else {
-                                leftPane.append("<div class='diff-line empty-pad'> </div>");
+                                leftPane.append("<div class='diff-line empty-pad'><span class='num-col'> </span><span class='sign-marker'> </span></div>");
                             }
 
-                            // Right Column (Cleaned Target Addition/Modification Highlight)
                             if (i < targetSize) {
                                 String line = escapeHtml(delta.getTarget().getLines().get(i));
-                                rightPane.append("<div class='diff-line addition'><span class='line-marker'>+</span>").append(line).append("</div>");
+                                rightPane.append("<div class='diff-line addition'><span class='num-col'>").append(cleanLineNum).append("</span><span class='sign-marker'>+</span>").append(line).append("</div>");
+                                cleanLineNum++;
                             } else {
-                                rightPane.append("<div class='diff-line empty-pad'> </div>");
+                                rightPane.append("<div class='diff-line empty-pad'><span class='num-col'> </span><span class='sign-marker'> </span></div>");
                             }
                         }
-
                         origIdx += sourceSize;
-                        cleanIdx += targetSize;
                     }
 
-                    // Process remaining trailing identical rows down to file end
                     while (origIdx < originalLines.size()) {
-                        String trailingLine = escapeHtml(originalLines.get(origIdx));
-                        leftPane.append("<div class='diff-line'><span class='line-marker'> </span>").append(trailingLine).append("</div>");
-                        rightPane.append("<div class='diff-line'><span class='line-marker'> </span>").append(trailingLine).append("</div>");
+                        String lineText = escapeHtml(originalLines.get(origIdx));
+                        leftPane.append("<div class='diff-line'><span class='num-col'>").append(origLineNum).append("</span><span class='sign-marker'> </span>").append(lineText).append("</div>");
+                        rightPane.append("<div class='diff-line'><span class='num-col'>").append(cleanLineNum).append("</span><span class='sign-marker'> </span>").append(lineText).append("</div>");
                         origIdx++;
+                        origLineNum++;
+                        cleanLineNum++;
                     }
 
-                    // Render split dashboard blocks cleanly to browser grids
                     html.append("<div class='diff-split-panel'>");
                     html.append("  <div class='diff-pane'><div class='pane-title'>Original DSL Asset File</div>").append(leftPane).append("</div>");
                     html.append("  <div class='diff-pane'><div class='pane-title'>Cleaned Production Output</div>").append(rightPane).append("</div>");
                     html.append("</div>");
+
+                    // Close the collapsible details container
+                    html.append("  </div>");
+                    html.append("</details>");
                 }
                 html.append("</div>");
             });
