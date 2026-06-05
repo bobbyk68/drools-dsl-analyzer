@@ -136,7 +136,7 @@ public class ReportGenerator {
                 .append(".kpi-card.opt { border-left-color: #8b5cf6; }")
                 .append(".kpi-label { font-size: 0.8rem; font-weight: 600; text-transform: uppercase; color: #64748b; margin-bottom: 5px; }")
                 .append(".kpi-value { font-size: 1.8rem; font-weight: 700; color: #1e293b; }")
-                .append(".card { background: white; border-radius: 8px; padding: 25px; margin-bottom: 25px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid #e2e8f0; }")
+                .append(".card { background: white; border-radius: 8px; padding: 25px; margin-bottom: 35px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid #e2e8f0; }")
                 .append(".card-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f1f5f9; padding-bottom: 15px; margin-bottom: 15px; }")
                 .append(".rule-title { font-size: 1.3rem; font-weight: bold; color: #0f172a; }")
                 .append(".badge { font-size: 0.75rem; font-weight: 700; padding: 6px 12px; border-radius: 50px; text-transform: uppercase; }")
@@ -147,12 +147,22 @@ public class ReportGenerator {
                 .append(".metric span { font-weight: bold; color: #0f172a; }")
                 .append(".clean-msg { color: #16a34a; font-weight: 500; font-size: 0.95rem; }")
 
-                // Inline Code Diff Styles (Matching GitHub UI colors)
-                .append(".diff-container { background: #0f172a; border-radius: 6px; padding: 15px; font-family: 'Fira Code', Consolas, Monaco, monospace; font-size: 0.85rem; line-height: 1.6; overflow-x: auto; color: #e2e8f0; margin-top: 15px; }")
-                .append(".diff-line { display: flex; white-space: pre; }")
+                // Standalone Overview Table Styles
+                .append("table { width: 100%; border-collapse: collapse; margin: 15px 0 25px 0; }")
+                .append("th { text-align: left; padding: 10px; background: #f8fafc; font-size: 0.8rem; text-transform: uppercase; color: #64748b; border-bottom: 2px solid #edf2f7; }")
+                .append("td { padding: 12px 10px; border-bottom: 1px solid #f1f5f9; font-size: 0.9rem; }")
+                .append(".line-num { font-family: monospace; color: #94a3b8; width: 90px; font-weight: 600; }")
+                .append(".removed-token { font-family: monospace; color: #991b1b; background: #fee2e2; padding: 4px 8px; border-radius: 4px; border: 1px solid #fecaca; font-weight: 500; display: inline-block; word-break: break-all; }")
+
+                // SIDE-BY-SIDE DIFF PANELS LAYOUT
+                .append(".diff-split-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; font-family: 'Fira Code', Consolas, Monaco, monospace; font-size: 0.82rem; }")
+                .append(".diff-pane { background: #0f172a; border-radius: 6px; padding: 15px; overflow-x: auto; color: #e2e8f0; line-height: 1.6; min-height: 100px; }")
+                .append(".pane-title { font-weight: bold; text-transform: uppercase; font-size: 0.75rem; color: #94a3b8; margin-bottom: 10px; letter-spacing: 0.5px; border-bottom: 1px solid #334155; padding-bottom: 5px; }")
+                .append(".diff-line { display: flex; white-space: pre; min-height: 20px; }")
                 .append(".diff-line.deletion { background: #451a1a; color: #fecaca; }")
                 .append(".diff-line.addition { background: #143a24; color: #bbf7d0; }")
-                .append(".line-marker { width: 25px; display: inline-block; user-select: none; opacity: 0.5; text-align: center; margin-right: 10px; }")
+                .append(".diff-line.empty-pad { background: #1e293b; opacity: 0.25; }") // Visual gray gap filler
+                .append(".line-marker { width: 20px; display: inline-block; user-select: none; opacity: 0.4; text-align: center; margin-right: 8px; }")
                 .append("</style></head><body>");
 
         html.append("<h1>DSL Redundancy Analysis</h1>");
@@ -169,6 +179,7 @@ public class ReportGenerator {
             html.append("<div class='card'><p>No rule sets were processed.</p></div>");
         } else {
             reportRegistry.forEach((ruleId, metrics) -> {
+                metrics.redundantDetails.sort(Comparator.comparingInt(RedundantEntry::lineNumber));
                 boolean isClean = metrics.redundantDetails.isEmpty();
 
                 html.append("<div class='card'>");
@@ -183,12 +194,25 @@ public class ReportGenerator {
                 html.append("  </div>");
 
                 if (isClean) {
-                    html.append("<div class='clean-msg'>✓ <strong>Status Clean:</strong> 100% of these mappings are fully cross-referenced in the DSLR rule definitions.</div>");
+                    html.append("<div class='clean-msg'>✓ <strong>Status Clean:</strong> 100% of these mappings are fully cross-referenced in the規則 definitions.</div>");
                 } else {
-                    html.append("<div style='font-weight:600; margin-bottom:5px; font-size:0.9rem;'>Unified Code Diff View:</div>");
-                    html.append("<div class='diff-container'>");
+                    // 1. RE-ADD THE STANDALONE OVERVIEW TABLE BREAKDOWN
+                    html.append("<div style='font-weight:600; font-size:0.95rem; margin-bottom:5px;'>Targeted Redundant Entries List:</div>");
+                    html.append("<table><thead><tr><th class='line-num'>Line</th><th>Redundant LHS Mapping Key (Pruned)</th></tr></thead><tbody>");
+                    for (RedundantEntry detail : metrics.redundantDetails) {
+                        html.append("<tr>");
+                        html.append("  <td class='line-num'>Line ").append(detail.lineNumber()).append("</td>");
+                        html.append("  <td><span class='removed-token'>").append(escapeHtml(detail.lhsToken())).append("</span></td>");
+                        html.append("</tr>");
+                    }
+                    html.append("</tbody></table>");
 
-                    // Generate code diff using java-diff-utils
+                    // 2. CONSTRUCT SIDE-BY-SIDE SIDE COMPARISON PANELS
+                    html.append("<div style='font-weight:600; font-size:0.95rem; margin-bottom:5px;'>Side-by-Side Visual File Comparison:</div>");
+
+                    StringBuilder leftPane = new StringBuilder();
+                    StringBuilder rightPane = new StringBuilder();
+
                     List<String> originalLines = Arrays.asList(metrics.originalContent.split("\\R"));
                     List<String> cleanedLines = Arrays.asList(metrics.cleanedContent.split("\\R"));
 
@@ -196,36 +220,57 @@ public class ReportGenerator {
                     List<AbstractDelta<String>> deltas = patch.getDeltas();
 
                     int origIdx = 0;
+                    int cleanIdx = 0;
+
                     for (AbstractDelta<String> delta : deltas) {
-                        // Print unchanged lines leading up to the modification
+                        // Process identical matching rows leading up to the difference
                         while (origIdx < delta.getSource().getPosition()) {
-                            html.append("<div class='diff-line'><span class='line-marker'> </span>")
-                                    .append(escapeHtml(originalLines.get(origIdx))).append("</div>");
+                            String baseLine = escapeHtml(originalLines.get(origIdx));
+                            leftPane.append("<div class='diff-line'><span class='line-marker'> </span>").append(baseLine).append("</div>");
+                            rightPane.append("<div class='diff-line'><span class='line-marker'> </span>").append(baseLine).append("</div>");
                             origIdx++;
+                            cleanIdx++;
                         }
 
-                        // Print deletions (Red lines)
-                        for (String line : delta.getSource().getLines()) {
-                            html.append("<div class='diff-line deletion'><span class='line-marker'>-</span>")
-                                    .append(escapeHtml(line)).append("</div>");
+                        int sourceSize = delta.getSource().getLines().size();
+                        int targetSize = delta.getTarget().getLines().size();
+                        int maxLines = Math.max(sourceSize, targetSize);
+
+                        // Align modified/removed code blocks completely parallel line-for-line
+                        for (int i = 0; i < maxLines; i++) {
+                            // Left Column (Original Source Deletion Highlight)
+                            if (i < sourceSize) {
+                                String line = escapeHtml(delta.getSource().getLines().get(i));
+                                leftPane.append("<div class='diff-line deletion'><span class='line-marker'>-</span>").append(line).append("</div>");
+                            } else {
+                                leftPane.append("<div class='diff-line empty-pad'> </div>");
+                            }
+
+                            // Right Column (Cleaned Target Addition/Modification Highlight)
+                            if (i < targetSize) {
+                                String line = escapeHtml(delta.getTarget().getLines().get(i));
+                                rightPane.append("<div class='diff-line addition'><span class='line-marker'>+</span>").append(line).append("</div>");
+                            } else {
+                                rightPane.append("<div class='diff-line empty-pad'> </div>");
+                            }
                         }
 
-                        // Print additions (Green lines)
-                        for (String line : delta.getTarget().getLines()) {
-                            html.append("<div class='diff-line addition'><span class='line-marker'>+</span>")
-                                    .append(escapeHtml(line)).append("</div>");
-                        }
-
-                        origIdx += delta.getSource().getLines().size();
+                        origIdx += sourceSize;
+                        cleanIdx += targetSize;
                     }
 
-                    // Print remaining unchanged trailing lines
+                    // Process remaining trailing identical rows down to file end
                     while (origIdx < originalLines.size()) {
-                        html.append("<div class='diff-line'><span class='line-marker'> </span>")
-                                .append(escapeHtml(originalLines.get(origIdx))).append("</div>");
+                        String trailingLine = escapeHtml(originalLines.get(origIdx));
+                        leftPane.append("<div class='diff-line'><span class='line-marker'> </span>").append(trailingLine).append("</div>");
+                        rightPane.append("<div class='diff-line'><span class='line-marker'> </span>").append(trailingLine).append("</div>");
                         origIdx++;
                     }
 
+                    // Render split dashboard blocks cleanly to browser grids
+                    html.append("<div class='diff-split-panel'>");
+                    html.append("  <div class='diff-pane'><div class='pane-title'>Original DSL Asset File</div>").append(leftPane).append("</div>");
+                    html.append("  <div class='diff-pane'><div class='pane-title'>Cleaned Production Output</div>").append(rightPane).append("</div>");
                     html.append("</div>");
                 }
                 html.append("</div>");
@@ -236,7 +281,7 @@ public class ReportGenerator {
 
         try {
             FileUtils.writeStringToFile(targetHtmlFile, html.toString(), StandardCharsets.UTF_8);
-            log.info("Visual Code-Diff Dashboard successfully written to: {}", targetHtmlFile.getAbsolutePath());
+            log.info("Visual Side-by-Side Code-Diff Dashboard written to: {}", targetHtmlFile.getAbsolutePath());
         } catch (IOException e) {
             log.error("Failed to write HTML report", e);
         }
