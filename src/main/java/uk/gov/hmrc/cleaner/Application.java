@@ -57,17 +57,31 @@ public class Application {
 
         RuleSetLocator locator = new RuleSetLocator();
         ReportGenerator reportGenerator = new ReportGenerator();
-//        DslAnalyzerEngine engine = new DslAnalyzerEngine(strategy, reportGenerator, isDryRun);
 
-        // Inside Application.java main method:
-        DslDeletionStrategy deletionStrategy = new StructuralDeletionStrategy(); // Pluggable
+        // 1. Resolve parsing strategy profile
+        String strategyFindParam = System.getProperty("strategy", "drools").toLowerCase();
+        DslParsingStrategy parsingStrategy = strategyFindParam.equals("regex")
+                ? new RegexDslParsingStrategy()
+                : new DroolsDslParsingStrategy();
 
+// 2. Resolve pluggable deletion strategy profile natively via System Properties (-D)
+        String deleteParam = System.getProperty("deleteStrategy", "structural").toLowerCase();
+        DslDeletionStrategy deletionStrategy = deleteParam.equals("regex")
+                ? new RegexDeletionStrategy()
+                : new StructuralDeletionStrategy();
+
+        log.info("Parser Strategy: {} | Deletion Strategy: {}",
+                parsingStrategy.getClass().getSimpleName(), deletionStrategy.getClass().getSimpleName());
+
+        // 3. Instantiate engine smoothly
         DslAnalyzerEngine engine = new DslAnalyzerEngine(
-                strategy,
-                deletionStrategy, // Passed over smoothly
+                parsingStrategy,
+                deletionStrategy,
                 reportGenerator,
                 isDryRun
         );
+
+
         try {
             List<RuleSetLocator.RuleSetPair> targets = locator.locateRuleSets(
                     basePath.resolve("dsl"),

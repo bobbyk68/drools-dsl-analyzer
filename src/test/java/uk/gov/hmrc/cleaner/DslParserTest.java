@@ -1,42 +1,139 @@
 package uk.gov.hmrc.cleaner;
 
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.stream.Stream;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.*;
 
-public class DslParserTest {
+class DslParserTest {
 
-    @Test
-    public void testParseEntriesWithMultiLineFormatting(@TempDir Path tempDir) throws IOException {
-        String dslContent = """
-                // Consignment Shipment - Consignor
-                
-                [then] Emit BR092 validation error for consignment shipment consignor physical address street and number =
-                    insert(emitter.emit(drools,BR092, of($cons, CONSIGNOR_PHYSICAL_ADDRESS_STREET_NUMBER)));
-                
-                [then] Emit BR092 validation error for consignment shipment consignor physical address country code =
-                    insert(emitter.emit(drools,BR092, of($cons, CONSIGNOR_PHYSICAL_ADDRESS_COUNTRY_CODE)));
-                """;
+    @TempDir
+    Path tempDir;
 
-        Path mockDslFile = tempDir.resolve("validationResult-BR092.dsl");
-        Files.writeString(mockDslFile, dslContent);
+    private Path mockDslFile;
 
-        DslParser parser = new DslParser();
-        List<DslParser.DslEntry> entries = parser.parseEntries(mockDslFile);
+    // Direct injection sources for Parameterized Loops
+    static Stream<DslParsingStrategy> parsingStrategyProvider() {
+        return Stream.of(new RegexDslParsingStrategy(), new DroolsDslParsingStrategy());
+    }
 
-        assertEquals(2, entries.size());
+    static Stream<DslDeletionStrategy> deletionStrategyProvider() {
+        return Stream.of(new StructuralDeletionStrategy(), new RegexDeletionStrategy());
+    }
+
+    @BeforeEach
+    void setUp() {
+        mockDslFile = tempDir.resolve("validationResult-TEST.dsl");
+    }
+
+    // =========================================================================
+    // PART 1: PARSING STRATEGY ASSERTERS
+    // =========================================================================
+
+    @ParameterizedTest
+    @MethodSource("parsingStrategyProvider")
+    void testStandardSingleLineExtraction(DslParsingStrategy strategy) throws IOException {
+        String content = "[then]Emit validation error=setResult(\"ERR\");";
+        Files.writeString(mockDslFile, content);
+
+        List<DslParsingStrategy.ParsedDslEntry> entries = strategy.parse(mockDslFile);
+
+        assertEquals(1, entries.size(), "Failed parsing on " + strategy.getClass().getSimpleName());
+        assertEquals("Emit validation error", entries.get(0).plainTextToken().trim().replaceAll("\\s+", " "));
+    }
+
+    @ParameterizedTest
+    @MethodSource("parsingStrategyProvider")
+    void testWhitespaceNormalizationTokenization(DslParsingStrategy strategy) throws IOException {
+        String content = "[then]Emit  double  spaces=setResult(\"ERR\");";
+        Files.writeString(mockDslFile, content);
+
+        List<DslParsingStrategy.ParsedDslEntry> entries = strategy.parse(mockDslFile);
+
+        assertEquals(1, entries.size());
+        // Both strategies normalize token spaces cleanly to ensure seamless matching inside the engine
+        assertEquals("Emit double spaces", entries.get(0).plainTextToken().trim().replaceAll("\\s+", " "));
+    }
+
+    @ParameterizedTest
+    @MethodSource("parsingStrategyProvider")
+    void testMultiLineKeyExtraction(DslParsingStrategy strategy) throws IOException {
+        String content = "[then]Emit validation error for\n" +
+                         "    consignment shipment\n" +
+                         "    consignor party name=setResult(\"ERR\");";
+        Files.writeString(mockDslFile, content);
+
+        List<DslParsingStrategy.ParsedDslEntry> entries = strategy.parse(mockDslFile);
+
+        assertEquals(1, entries.size(), "Multi-line key extraction failed for " + strategy.getClass().getSimpleName());
+        assertEquals("Emit validation error for consignment shipment consignor party name", 
+                entries.get(0).plainTextToken().trim().replaceAll("\\s+", " "));
+    }
+
+    // =========================================================================
+    // PART 2: DELETION STRATEGY ASSERTERS
+    // =========================================================================
+
+    @ParameterizedTest
+    @MethodSource("deletionStrategyProvider")
+    void testAtomicDeletionOfStandardRule(DslDeletionStrategy strategy) {
+        String originalContent = "[then]Emit rule one=setResult(\"1\");\n" +
+                                 "[then]Emit rule two=setResult(\"2\");";
         
-        DslParser.DslEntry firstEntry = entries.get(0);
-        assertEquals("Emit BR092 validation error for consignment shipment consignor physical address street and number", 
-                firstEntry.plainTextToken());
-        
-        assertEquals(3, firstEntry.lineNumber());
-        assertEquals(6, entries.get(1).lineNumber());
+        DslParsingStrategy.ParsedDslEntry targetEntry = new DslParsingStrategy.ParsedDslEntry(
+                "[then]Emit rule one=setResult(\"1\");", "Emit rule one", 1);
+
+        String result = strategy.deleteEntry(originalContent, targetEntry);
+
+        assertFalse(result.contains("Emit rule one"), "Strategy " + strategy.getClass().getSimpleName() + " left the rule key behind.");
+        assertFalse(result.contains("setResult(\"1\");"), "Strategy " + strategy.getClass().getSimpleName() + " left the action signature behind.");
+        assertTrue(result.contains("[then]Emit rule two=setResult(\"2\");"), "Strategy accidentally damaged adjacent rules.");
+    }
+
+    @ParameterizedTest
+    @MethodSource("deletionStrategyProvider")
+    void testAtomicDeletionOfMultiLineKey(DslDeletionStrategy strategy) {
+        String originalContent = "[then]Emit validation error for\n" +
+                                 "    consignment shipment\n" +
+                                 "    consignor party name=setResult(\"ERR\");\n" +
+                                 "[then]Keep this adjacent rule=setResult(\"OK\");";
+
+        // Simulated entry model generated by the parsers
+        DslParsingStrategy.ParsedDslEntry targetEntry = new DslParsingStrategy.ParsedDslEntry(
+                "", "Emit validation error for consignment shipment consignor party name", 1);
+
+        String result = strategy.deleteEntry(originalContent, targetEntry);
+
+        assertFalse(result.contains("consignment shipment"), "Failed to erase multi-line key fragment.");
+        assertFalse(result.contains("setResult(\"ERR\");"), "Orphaned multi-line consequence action left behind.");
+        assertFalse(result.contains("[then] \n"), "Left an orphaned dangling header tag.");
+        assertTrue(result.contains("[then]Keep this adjacent rule=setResult(\"OK\");"), "Adjacent rule was corrupted.");
+    }
+
+    @ParameterizedTest
+    @MethodSource("deletionStrategyProvider")
+    void testAtomicDeletionOfMultiLineConsequenceAction(DslDeletionStrategy strategy) {
+        // This simulates your production scenario where the right hand side drops across line breaks
+        String originalContent = "[then]Target rule with multi line action=\n" +
+                                 "    insert(emitter.emit(drools, BR092,\n" +
+                                 "    of($cons, CONSIGNEE_PARTY_NAME)));\n" +
+                                 "[then]Surviving standalone rule=setResult(\"SAFE\");";
+
+        DslParsingStrategy.ParsedDslEntry targetEntry = new DslParsingStrategy.ParsedDslEntry(
+                "", "Target rule with multi line action", 1);
+
+        String result = strategy.deleteEntry(originalContent, targetEntry);
+
+        assertFalse(result.contains("CONSIGNEE_PARTY_NAME"), "Failed to strip multi-line consequence block deep elements.");
+        assertFalse(result.contains("insert(emitter.emit"), "Failed to strip multi-line action headers.");
+        assertTrue(result.contains("[then]Surviving standalone rule=setResult(\"SAFE\");"), "Damaged surrounding code parameters.");
     }
 }
