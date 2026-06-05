@@ -14,46 +14,51 @@ public class Application {
     private static final Logger log = LoggerFactory.getLogger(Application.class);
 
     public static void main(String[] args) {
-        boolean isDryRun = false;
+        // 1. Read configuration toggles directly from System Properties (-D)
+        boolean isDryRun = Boolean.getBoolean("dryRun");
+        String strategyParam = System.getProperty("strategy", "drools").toLowerCase();
 
-        // Choose your parsing strategy
-        DslParsingStrategy strategy = new DroolsDslParsingStrategy();
+        DslParsingStrategy strategy = strategyParam.equals("regex")
+                ? new RegexDslParsingStrategy()
+                : new DroolsDslParsingStrategy();
 
-        // 1. Check if a path argument was passed via the command line
+        // 2. Resolve target rules path from args or fallback
         Path basePath;
         if (args.length > 0 && args[0] != null && !args[0].isBlank()) {
             basePath = Paths.get(args[0]);
-            log.info("Using custom external rules directory: {}", basePath.toAbsolutePath());
         } else {
-            // Fallback default if no parameter is passed
             basePath = Paths.get("./src/main/resources/rules/dms");
-            log.info("No path parameter provided. Falling back to default: {}", basePath.toAbsolutePath());
         }
 
-        File reportOutputFile = new File("./dsl-redundancy-report.txt");
+        log.info("========================================================================");
+        log.info("Starting Drools DSL Analyzer");
+        log.info("Strategy: {} | DryRun: {} | Path: {}", strategy.getClass().getSimpleName(), isDryRun, basePath.toAbsolutePath());
+        log.info("========================================================================");
+
+        File txtReport = new File("./dsl-redundancy-report.txt");
+        File htmlReport = new File("./dsl-redundancy-report.html"); // Added HTML target
+
         RuleSetLocator locator = new RuleSetLocator();
         ReportGenerator reportGenerator = new ReportGenerator();
         DslAnalyzerEngine engine = new DslAnalyzerEngine(strategy, reportGenerator, isDryRun);
 
         try {
-            // Resolve 'dsl' and 'dslr' folders relative to the chosen base path
             List<RuleSetLocator.RuleSetPair> targets = locator.locateRuleSets(
                     basePath.resolve("dsl"),
                     basePath.resolve("dslr")
             );
 
-            if (isDryRun) {
-                log.info("Running in DRY RUN mode. Structural changes will not be saved.");
-            }
-
-            log.info("Using parsing strategy: {}", strategy.getClass().getSimpleName());
-            log.info("Discovered {} matching DSL/DSLR rule clusters. Initiating analysis...", targets.size());
+            log.info("Discovered {} matching rule clusters. Processing...", targets.size());
             targets.forEach(engine::analyze);
 
-            reportGenerator.generateReportFile(reportOutputFile);
+            // 3. Output reports in both flat-text and visual HTML formats
+            reportGenerator.generateReportFile(txtReport);
+            reportGenerator.generateHtmlReportFile(htmlReport);
 
         } catch (IOException e) {
-            log.error("Global engine context crash during file mapping scanning execution", e);
+            log.error("Global engine context crash during file processing execution", e);
         }
     }
+
+
 }
