@@ -62,7 +62,6 @@ public class Application {
         File htmlReport = new File("./dsl-redundancy-report.html");
 
         RuleSetLocator locator = new RuleSetLocator();
-        ReportGenerator reportGenerator = new ReportGenerator();
 
         // 1. Resolve parsing strategy profile
         String strategyFindParam = System.getProperty("strategy", "drools").toLowerCase();
