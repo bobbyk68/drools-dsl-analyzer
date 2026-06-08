@@ -1,4 +1,6 @@
-package uk.gov.hmrc.cleaner;
+package uk.gov.hmrc.cleaner.strategy;
+
+import uk.gov.hmrc.cleaner.model.ParsedDslEntry;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -6,7 +8,6 @@ import java.util.List;
 
 public interface DslParsingStrategy {
 
-    record ParsedDslEntry(String rawBlock, String plainTextToken, int lineNumber) {}
 
     List<ParsedDslEntry> parse(Path dslPath) throws IOException;
 }

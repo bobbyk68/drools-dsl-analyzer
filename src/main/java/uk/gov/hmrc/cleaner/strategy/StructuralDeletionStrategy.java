@@ -1,13 +1,14 @@
-package uk.gov.hmrc.cleaner;
+package uk.gov.hmrc.cleaner.strategy;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import uk.gov.hmrc.cleaner.model.ParsedDslEntry;
 
 public class StructuralDeletionStrategy implements DslDeletionStrategy {
     private static final Logger log = LoggerFactory.getLogger(StructuralDeletionStrategy.class);
 
     @Override
-    public String deleteEntry(String fullContent, DslParsingStrategy.ParsedDslEntry entry) {
+    public String deleteEntry(String fullContent, ParsedDslEntry entry) {
         StringBuilder buffer = new StringBuilder(fullContent);
 
         // 1. Try a clean, fast exact string lookup first

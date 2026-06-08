@@ -1,8 +1,9 @@
-package uk.gov.hmrc.cleaner;
+package uk.gov.hmrc.cleaner.strategy;
 
 import org.drools.drl.parser.lang.dsl.DSLMappingEntry;
 import org.drools.drl.parser.lang.dsl.DSLMappingFile;
 import org.drools.drl.parser.lang.dsl.DSLTokenizedMappingFile;
+import uk.gov.hmrc.cleaner.model.ParsedDslEntry;
 
 import java.io.BufferedReader;
 import java.io.IOException;

@@ -2,6 +2,12 @@ package uk.gov.hmrc.cleaner;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import uk.gov.hmrc.cleaner.core.DslAnalyzerEngine;
+import uk.gov.hmrc.cleaner.core.RuleSetLocator;
+import uk.gov.hmrc.cleaner.model.ReportRegistry;
+import uk.gov.hmrc.cleaner.report.HtmlReportWriter;
+import uk.gov.hmrc.cleaner.report.TextReportWriter;
+import uk.gov.hmrc.cleaner.strategy.*;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -73,28 +79,19 @@ public class Application {
         log.info("Parser Strategy: {} | Deletion Strategy: {}",
                 parsingStrategy.getClass().getSimpleName(), deletionStrategy.getClass().getSimpleName());
 
-        // 3. Instantiate engine smoothly
-        DslAnalyzerEngine engine = new DslAnalyzerEngine(
-                parsingStrategy,
-                deletionStrategy,
-                reportGenerator,
-                isDryRun
-        );
+        // Inside Application.java main execution loop:
+        ReportRegistry reportRegistry = new ReportRegistry(); // Data Model Storage
+        DslAnalyzerEngine engine = new DslAnalyzerEngine(parsingStrategy, deletionStrategy, reportRegistry, isDryRun);
 
 
         try {
-            List<RuleSetLocator.RuleSetPair> targets = locator.locateRuleSets(
-                    basePath.resolve("dsl"),
-                    basePath.resolve("dslr")
-            );
+            List<RuleSetLocator.RuleSetPair> targets = locator.locateRuleSets(basePath.resolve("dsl"), basePath.resolve("dslr"));
 
             log.info("Discovered {} matching rule clusters. Processing...", targets.size());
             targets.forEach(engine::analyze);
 
-            reportGenerator.generateReportFile(txtReport);
-            reportGenerator.generateHtmlReportFile(htmlReport);
-
-            // 3. PROFILER CONCLUSION: Compute execution metrics
+            new TextReportWriter().generateReportFile(reportRegistry, txtReport);
+            new HtmlReportWriter().generateHtmlReportFile(reportRegistry, htmlReport);
             long duration = System.currentTimeMillis() - startTime;
             log.info("========================================================================");
             log.info("ANALYSIS COMPLETE: Processed {} modules in {} ms", targets.size(), duration);

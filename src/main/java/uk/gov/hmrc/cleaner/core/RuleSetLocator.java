@@ -1,4 +1,4 @@
-package uk.gov.hmrc.cleaner;
+package uk.gov.hmrc.cleaner.core;
 
 import java.io.IOException;
 import java.nio.file.Files;

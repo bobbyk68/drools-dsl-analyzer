@@ -1,4 +1,6 @@
-package uk.gov.hmrc.cleaner;
+package uk.gov.hmrc.cleaner.strategy;
+
+import uk.gov.hmrc.cleaner.model.ParsedDslEntry;
 
 public interface DslDeletionStrategy {
     /**
@@ -7,5 +9,5 @@ public interface DslDeletionStrategy {
      * @param entry The parsed rule entry that needs to be scrubbed.
      * @return The updated string content with the entry completely removed.
      */
-    String deleteEntry(String fullContent, DslParsingStrategy.ParsedDslEntry entry);
+    String deleteEntry(String fullContent, ParsedDslEntry entry);
 }
