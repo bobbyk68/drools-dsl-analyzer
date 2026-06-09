@@ -2,9 +2,6 @@ package uk.gov.hmrc.cleaner.strategy;
 
 import java.util.regex.Pattern;
 
-
-import java.util.regex.Pattern;
-
 public final class DslDeletionPatterns {
 
     private DslDeletionPatterns() {}
@@ -21,9 +18,8 @@ public final class DslDeletionPatterns {
                 .replace("]", "\\]")
                 .replace(" ", "\\s+");
 
-        // 3. FIX: Add [ \t]*\r?\n? to swallow trailing spaces and the end of the line,
-        // but absolutely nothing further!
-        String finalRegexStr = "\\[then\\]\\s*" + escapedToken + "\\s*=\\s*((?:(?!\\[then\\])[\\s\\S])*?;)[ \\t]*\\r?\\n?";
+        // 3. FIX: Match up to a semicolon, but ONLY if followed by whitespaces/comments leading to the next [then] or EOF
+        String finalRegexStr = "\\[then\\]\\s*" + escapedToken + "\\s*=\\s*(?:(?!\\[then\\])[\\s\\S])*?;(?=\\s*(?:\\/\\*([\\s\\S]*?)\\*\\/|\\/\\/.*|\\s)*(?:\\[then\\]|$))[ \\t]*\\r?\\n?";
 
         return Pattern.compile(finalRegexStr);
     }
