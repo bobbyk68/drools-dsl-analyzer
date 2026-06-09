@@ -23,7 +23,9 @@ public class RegexDslParsingStrategy implements DslParsingStrategy {
         List<ParsedDslEntry> entries = new ArrayList<>();
         String content = Files.readString(dslFilePath, StandardCharsets.UTF_8);
 
-        Matcher matcher = THEN_BLOCK_PATTERN.matcher(content);
+        // Inside your parse(Path dslFilePath) logic loop:
+        Matcher matcher = DslReaderPatterns.getExtractorPattern().matcher(content);
+        //Matcher matcher = THEN_BLOCK_PATTERN.matcher(content);
         int lineNumber = 1; // Basic tracking or you can compute exact line index offset
 
         while (matcher.find()) {
