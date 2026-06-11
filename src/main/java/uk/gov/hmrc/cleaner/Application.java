@@ -1,5 +1,7 @@
 package uk.gov.hmrc.cleaner;
 
+import org.drools.drl.parser.lang.dsl.DSLTokenizedMappingFile;
+import org.drools.drl.parser.lang.dsl.DefaultExpander;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import uk.gov.hmrc.cleaner.core.DslAnalyzerEngine;
@@ -12,6 +14,7 @@ import uk.gov.hmrc.cleaner.strategy.*;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.StringReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -131,5 +134,28 @@ public class Application {
                     });
         }
         log.info("Safety snapshot successfully compiled: {}", zipFile.getAbsolutePath());
+    }
+
+    public String expandDslrToDrl(Path dslPath, Path dslrPath) throws IOException {
+        DSLTokenizedMappingFile mappingFile = new DSLTokenizedMappingFile();
+
+        boolean loaded = mappingFile.parseAndLoad(
+                new StringReader(Files.readString(dslPath))
+        );
+
+        if (!loaded) {
+            throw new IllegalStateException("Could not load DSL file");
+        }
+
+        DefaultExpander expander = new DefaultExpander();
+        expander.addDSLMapping(mappingFile.getMapping());
+
+        String drl = expander.expand(Files.readString(dslrPath));
+
+        if (expander.hasErrors()) {
+            expander.getErrors().forEach(System.out::println);
+        }
+
+        return drl;
     }
 }
