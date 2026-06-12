@@ -1,4 +1,4 @@
-package uk.gov.hmrc.cleaner;
+package uk.gov.hmrc.cars.cleaner;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.io.TempDir;
